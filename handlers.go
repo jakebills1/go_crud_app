@@ -9,33 +9,21 @@ import (
 
 func indexHandler(w http.ResponseWriter, req *http.Request) {
 	allMessages := findAll()
-	b, err := json.Marshal(allMessages)
-	if err != nil {
-		log.Println("Marshal():", err)
-	}
+	b := marshal(allMessages)
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(b)
 }
 
 func createHandler(w http.ResponseWriter, req *http.Request) {
-	body, readErr := io.ReadAll(req.Body)
-	if readErr != nil {
-		log.Fatal("ReadAll():", readErr)
-	}
-	var messageParams MessageParams
-	unMarshalErr := json.Unmarshal(body, &messageParams)
-	if unMarshalErr != nil {
-		log.Fatal("Unmarshal():", unMarshalErr)
-	}
+	body := getBody(req)
+	var messageParams Message
+	parseBodyAsJson(body, messageParams)
 	message, saveErr := saveMessage(messageParams.Name, messageParams.Body)
 	if saveErr != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	} else {
 		w.WriteHeader(http.StatusCreated)
-		b, marshalErr := json.Marshal(message)
-		if marshalErr != nil {
-			log.Fatal("Marshal():", marshalErr)
-		}
+		b := marshal(message)
 		w.Header().Add("Content-Type", "application/json")
 		w.Write(b)
 	}
@@ -49,10 +37,7 @@ func showHandler(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	} else {
 		w.Header().Add("Content-Type", "application/json")
-		b, err := json.Marshal(foundMessage)
-		if err != nil {
-			log.Fatal("Marshal():", err)
-		}
+		b := marshal(foundMessage)
 		w.Write(b)
 	}
 }
@@ -64,23 +49,14 @@ func updateHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	} else {
-		body, readErr := io.ReadAll(req.Body)
-		if readErr != nil {
-			log.Println("ReadAll():", readErr)
-		}
-		unMarshalErr := json.Unmarshal(body, &message)
-		if unMarshalErr != nil {
-			log.Println("Unmarshal():", unMarshalErr)
-		}
+		body := getBody(req)
+		parseBodyAsJson(body, message)
 		updateErr := updateMessage(&message)
 		if updateErr != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
 			w.Header().Add("Content-Type", "application/json")
-			b, marshalErr := json.Marshal(message)
-			if marshalErr != nil {
-				log.Println("Marshal():", marshalErr)
-			}
+			b := marshal(message)
 			w.Write(b)
 		}
 	}
@@ -94,4 +70,27 @@ func deleteHandler(w http.ResponseWriter, req *http.Request) {
 	} else {
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+func getBody(req *http.Request) []byte {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.Fatal("ReadAll():", err)
+	}
+	return body
+}
+
+func parseBodyAsJson(body []byte, src Message) {
+	err := json.Unmarshal(body, &src)
+	if err != nil {
+		log.Fatal("Unmarshal():", err)
+	}
+}
+
+func marshal[T Message | []Message](src T) []byte {
+	b, err := json.Marshal(src)
+	if err != nil {
+		log.Fatal("Marshal():", err)
+	}
+	return b
 }

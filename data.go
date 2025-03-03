@@ -74,11 +74,9 @@ func saveMessage(name string, body string) (Message, error) {
 
 	var id int64
 	err := row.Scan(&id)
-	log.Println(id)
 	if err != nil {
 		return Message{}, &NotSavedError{}
 	}
-	log.Println(id)
 	message := Message{Name: name, Body: body, Time: ts, Id: id}
 	return message, nil
 }

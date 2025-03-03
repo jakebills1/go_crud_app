@@ -2,12 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"github.com/joho/godotenv"
+	"github.com/lib/pq"
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/joho/godotenv"
-	"github.com/lib/pq"
 )
 
 var (
@@ -15,11 +14,21 @@ var (
 )
 
 func main() {
+	setUpEnv()
+	setUpDb()
+	defer db.Close()
+
+	log.Fatal(http.ListenAndServe(":8080", configureRouter()))
+}
+
+func setUpEnv() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	// db setup
+}
+
+func setUpDb() {
 	conninfo := os.Getenv("DATABASE_URL")
 	connector, connErr := pq.NewConnector(conninfo)
 	if connErr != nil {
@@ -30,8 +39,9 @@ func main() {
 	if dbErr != nil {
 		panic(dbErr)
 	}
-	defer db.Close()
+}
 
+func configureRouter() *http.ServeMux {
 	// http setup
 	router := http.NewServeMux()
 	router.HandleFunc("GET /messages/{messageId}", showHandler)
@@ -39,6 +49,5 @@ func main() {
 	router.HandleFunc("DELETE /messages/{messageId}", deleteHandler)
 	router.HandleFunc("GET /messages/", indexHandler)
 	router.HandleFunc("POST /messages/", createHandler)
-
-	log.Fatal(http.ListenAndServe(":8080", router))
+	return router
 }
