@@ -1,17 +1,9 @@
 package main
 
 import (
-	"github.com/google/uuid"
 	"log"
 	"net/http"
 )
-
-type Message struct {
-	Name string
-	Body string
-	Time int64
-	Id   uuid.UUID
-}
 
 // todo use DB
 var (
