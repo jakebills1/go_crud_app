@@ -1,3 +1,4 @@
 .idea
 *.http
 /http-client.env.json
+.env

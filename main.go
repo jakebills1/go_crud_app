@@ -2,11 +2,11 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/lib/pq"
 )
 
@@ -15,8 +15,12 @@ var (
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	// db setup
-	conninfo := fmt.Sprintf("postgresql://%s@localhost:5432/go_crud_app_development?sslmode=disable", os.Getenv("USERNAME"))
+	conninfo := os.Getenv("DATABASE_URL")
 	connector, connErr := pq.NewConnector(conninfo)
 	if connErr != nil {
 		panic(connErr)
