@@ -8,7 +8,8 @@ import (
 )
 
 func indexHandler(w http.ResponseWriter, req *http.Request) {
-	b, err := json.Marshal(messages)
+	allMessages := findAll()
+	b, err := json.Marshal(allMessages)
 	if err != nil {
 		log.Println("Marshal():", err)
 	}
@@ -17,22 +18,27 @@ func indexHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func createHandler(w http.ResponseWriter, req *http.Request) {
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		log.Println("ReadAll():", err)
+	body, readErr := io.ReadAll(req.Body)
+	if readErr != nil {
+		log.Fatal("ReadAll():", readErr)
 	}
-	var m Message
-	err = json.Unmarshal(body, &m)
-	if err != nil {
-		log.Println("Unmarshal():", err)
+	var messageParams MessageParams
+	unMarshalErr := json.Unmarshal(body, &messageParams)
+	if unMarshalErr != nil {
+		log.Fatal("Unmarshal():", unMarshalErr)
 	}
-	log.Println("creating new Message with Name =", m.Name, ", Body =", m.Body, ", and Time =", m.Time)
-	saveMessage(&m)
-	messages = append(messages, m)
-	w.Header().Add("Content-Type", "text/html")
-	w.WriteHeader(http.StatusCreated)
-	responseBody := []byte("<html><body>Created new message!</body></html>")
-	w.Write(responseBody)
+	message, saveErr := saveMessage(messageParams.Name, messageParams.Body)
+	if saveErr != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+		b, marshalErr := json.Marshal(message)
+		if marshalErr != nil {
+			log.Fatal("Marshal():", marshalErr)
+		}
+		w.Header().Add("Content-Type", "application/json")
+		w.Write(b)
+	}
 }
 
 func showHandler(w http.ResponseWriter, req *http.Request) {
@@ -40,15 +46,12 @@ func showHandler(w http.ResponseWriter, req *http.Request) {
 	foundMessage, err := findById(requestedMessageId)
 
 	if err != nil {
-		w.Header().Add("Content-Type", "text/html")
 		w.WriteHeader(http.StatusNotFound)
-		responseBody := []byte("<html><body>Message Not Found!</body></html>")
-		w.Write(responseBody)
 	} else {
 		w.Header().Add("Content-Type", "application/json")
 		b, err := json.Marshal(foundMessage)
 		if err != nil {
-			log.Println("Marshal():", err)
+			log.Fatal("Marshal():", err)
 		}
 		w.Write(b)
 	}
@@ -56,56 +59,39 @@ func showHandler(w http.ResponseWriter, req *http.Request) {
 
 func updateHandler(w http.ResponseWriter, req *http.Request) {
 	requestedMessageId := req.PathValue("messageId")
-	_, err := findById(requestedMessageId)
+	message, err := findById(requestedMessageId)
 
 	if err != nil {
-		w.Header().Add("Content-Type", "text/html")
 		w.WriteHeader(http.StatusNotFound)
-		responseBody := []byte("<html><body>Message Not Found!</body></html>")
-		w.Write(responseBody)
 	} else {
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			log.Println("ReadAll():", err)
+		body, readErr := io.ReadAll(req.Body)
+		if readErr != nil {
+			log.Println("ReadAll():", readErr)
 		}
-		var updates MessageUpdates
-		err = json.Unmarshal(body, &updates)
-		if err != nil {
-			log.Println("Unmarshal():", err)
+		unMarshalErr := json.Unmarshal(body, &message)
+		if unMarshalErr != nil {
+			log.Println("Unmarshal():", unMarshalErr)
 		}
-		updatedMessages := make([]Message, len(messages))
-		for _, message := range messages {
-			if message.Id.String() != requestedMessageId {
-				updatedMessages = append(updatedMessages, message)
-			} else {
-				updatedMessages = append(updatedMessages, updateMessage(message, updates))
+		updateErr := updateMessage(&message)
+		if updateErr != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			w.Header().Add("Content-Type", "application/json")
+			b, marshalErr := json.Marshal(message)
+			if marshalErr != nil {
+				log.Println("Marshal():", marshalErr)
 			}
+			w.Write(b)
 		}
-		messages = updatedMessages
-		w.Header().Add("Content-Type", "text/html")
-		responseBody := []byte("<html><body>Message updated/</body></html>")
-		w.Write(responseBody)
 	}
 }
 
 func deleteHandler(w http.ResponseWriter, req *http.Request) {
 	requestedMessageId := req.PathValue("messageId")
-	_, err := findById(requestedMessageId)
+	err := deleteMessage(requestedMessageId)
 	if err != nil {
-		w.Header().Add("Content-Type", "text/html")
 		w.WriteHeader(http.StatusNotFound)
-		responseBody := []byte("<html><body>Message Not Found!</body></html>")
-		w.Write(responseBody)
 	} else {
-		filteredMessages := make([]Message, len(messages))
-		for _, message := range messages {
-			if message.Id.String() != requestedMessageId {
-				filteredMessages = append(filteredMessages, message)
-			}
-		}
-		messages = filteredMessages
-		w.Header().Add("Content-Type", "text/html")
-		responseBody := []byte("<html><body>Message deleted/</body></html>")
-		w.Write(responseBody)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
