@@ -27,7 +27,7 @@ func createHandler(w http.ResponseWriter, req *http.Request) {
 	body := getBody(req)
 	var messageParams Message
 	parseBodyAsJson(body, &messageParams)
-	message, saveErr := saveMessage(messageParams.Name, messageParams.Body, ctx)
+	message, saveErr := saveMessage(ctx, messageParams.Name, messageParams.Body)
 	if saveErr != nil {
 		http.Error(w, saveErr.Error(), http.StatusBadRequest)
 	} else {
@@ -43,7 +43,7 @@ func showHandler(w http.ResponseWriter, req *http.Request) {
 	defer cancel()
 
 	requestedMessageId := req.PathValue("messageId")
-	foundMessage, err := findById(requestedMessageId, ctx)
+	foundMessage, err := findById(ctx, requestedMessageId)
 
 	switch err.(type) {
 	case nil:
@@ -62,14 +62,14 @@ func updateHandler(w http.ResponseWriter, req *http.Request) {
 	defer cancel()
 
 	requestedMessageId := req.PathValue("messageId")
-	message, err := findById(requestedMessageId, ctx)
+	message, err := findById(ctx, requestedMessageId)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	} else {
 		body := getBody(req)
 		parseBodyAsJson(body, &message)
-		updateErr := updateMessage(&message, ctx)
+		updateErr := updateMessage(ctx, &message)
 		if updateErr != nil {
 			http.Error(w, updateErr.Error(), http.StatusBadRequest)
 		} else {
@@ -85,7 +85,7 @@ func deleteHandler(w http.ResponseWriter, req *http.Request) {
 	defer cancel()
 
 	requestedMessageId := req.PathValue("messageId")
-	err := deleteMessage(requestedMessageId, ctx)
+	err := deleteMessage(ctx, requestedMessageId)
 	switch err.(type) {
 	case nil:
 		w.WriteHeader(http.StatusNoContent)

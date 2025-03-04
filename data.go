@@ -52,7 +52,7 @@ func findAll(ctx context.Context) ([]Message, error) {
 	return allMessages, nil
 }
 
-func findById(messageId string, ctx context.Context) (Message, error) {
+func findById(ctx context.Context, messageId string) (Message, error) {
 	var message Message
 	err := db.QueryRowContext(ctx, "SELECT * from messages where id = $1", messageId).Scan(&message.Name, &message.Body, &message.Time, &message.Id)
 
@@ -65,7 +65,7 @@ func findById(messageId string, ctx context.Context) (Message, error) {
 	return message, nil
 }
 
-func updateMessage(message *Message, ctx context.Context) error {
+func updateMessage(ctx context.Context, message *Message) error {
 	result, err := db.ExecContext(ctx, "UPDATE messages SET name = $1, body = $2 where id = $3", message.Name, message.Body, message.Id)
 	if err != nil {
 		return &APIError{}
@@ -78,7 +78,7 @@ func updateMessage(message *Message, ctx context.Context) error {
 	return nil
 }
 
-func saveMessage(name string, body string, ctx context.Context) (Message, error) {
+func saveMessage(ctx context.Context, name string, body string) (Message, error) {
 	message := Message{}
 	ts := time.Now().Unix()
 	row := db.QueryRowContext(ctx, "INSERT INTO messages values ($1, $2, $3) returning *", name, body, ts)
@@ -90,7 +90,7 @@ func saveMessage(name string, body string, ctx context.Context) (Message, error)
 	return message, nil
 }
 
-func deleteMessage(messageId string, ctx context.Context) error {
+func deleteMessage(ctx context.Context, messageId string) error {
 	result, err := db.ExecContext(ctx, "DELETE FROM messages where id = $1", messageId)
 	if err != nil {
 		return &APIError{}
