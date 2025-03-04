@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 	"time"
 )
 
@@ -40,6 +41,7 @@ func (e *APIError) Error() string {
 func findAll(ctx context.Context) ([]Message, error) {
 	rows, err := db.QueryContext(ctx, "SELECT * from messages")
 	if err != nil {
+		log.Println(err)
 		return nil, &APIError{}
 	}
 	var allMessages []Message
@@ -59,6 +61,7 @@ func findById(ctx context.Context, messageId string) (Message, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return Message{}, &NotFoundError{}
 	} else if err != nil {
+		log.Println(err)
 		return Message{}, &APIError{}
 	}
 
@@ -68,6 +71,7 @@ func findById(ctx context.Context, messageId string) (Message, error) {
 func updateMessage(ctx context.Context, message *Message) error {
 	result, err := db.ExecContext(ctx, "UPDATE messages SET name = $1, body = $2 where id = $3", message.Name, message.Body, message.Id)
 	if err != nil {
+		log.Println(err)
 		return &APIError{}
 	}
 
@@ -93,6 +97,7 @@ func saveMessage(ctx context.Context, name string, body string) (Message, error)
 func deleteMessage(ctx context.Context, messageId string) error {
 	result, err := db.ExecContext(ctx, "DELETE FROM messages where id = $1", messageId)
 	if err != nil {
+		log.Println(err)
 		return &APIError{}
 	}
 	rowsAffected, _ := result.RowsAffected()
