@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
-	"log"
 	"time"
 )
 
@@ -23,6 +23,8 @@ type NotFoundError struct{}
 
 type NotSavedError struct{}
 
+type APIError struct{}
+
 func (e *NotFoundError) Error() string {
 	return "record not found"
 }
@@ -31,34 +33,42 @@ func (e *NotSavedError) Error() string {
 	return "record not saved"
 }
 
-func findAll() []Message {
-	rows, _ := db.Query("SELECT * from messages")
+func (e *APIError) Error() string {
+	return "an error occurred"
+}
+
+func findAll(ctx context.Context) ([]Message, error) {
+	rows, err := db.QueryContext(ctx, "SELECT * from messages")
+	if err != nil {
+		return nil, &APIError{}
+	}
 	var allMessages []Message
 	for rows.Next() {
 		var message Message
 		rows.Scan(&message.Name, &message.Body, &message.Time, &message.Id)
 		allMessages = append(allMessages, message)
 	}
-	return allMessages
+	defer rows.Close()
+	return allMessages, nil
 }
 
-func findById(messageId string) (Message, error) {
+func findById(messageId string, ctx context.Context) (Message, error) {
 	var message Message
-	err := db.QueryRow("SELECT * from messages where id = $1", messageId).Scan(&message.Name, &message.Body, &message.Time, &message.Id)
+	err := db.QueryRowContext(ctx, "SELECT * from messages where id = $1", messageId).Scan(&message.Name, &message.Body, &message.Time, &message.Id)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return Message{}, &NotFoundError{}
 	} else if err != nil {
-		log.Fatal("QueryRow:", err)
+		return Message{}, &APIError{}
 	}
 
 	return message, nil
 }
 
-func updateMessage(message *Message) error {
-	result, err := db.Exec("UPDATE messages SET name = $1, body = $2 where id = $3", message.Name, message.Body, message.Id)
+func updateMessage(message *Message, ctx context.Context) error {
+	result, err := db.ExecContext(ctx, "UPDATE messages SET name = $1, body = $2 where id = $3", message.Name, message.Body, message.Id)
 	if err != nil {
-		log.Fatal("Exec():", err)
+		return &APIError{}
 	}
 
 	rowsAffected, _ := result.RowsAffected()
@@ -68,9 +78,9 @@ func updateMessage(message *Message) error {
 	return nil
 }
 
-func saveMessage(name string, body string) (Message, error) {
+func saveMessage(name string, body string, ctx context.Context) (Message, error) {
 	ts := time.Now().Unix()
-	row := db.QueryRow("INSERT INTO messages values ($1, $2, $3) returning id", name, body, ts)
+	row := db.QueryRowContext(ctx, "INSERT INTO messages values ($1, $2, $3) returning id", name, body, ts)
 
 	var id int64
 	err := row.Scan(&id)
@@ -81,10 +91,10 @@ func saveMessage(name string, body string) (Message, error) {
 	return message, nil
 }
 
-func deleteMessage(messageId string) error {
-	result, execErr := db.Exec("DELETE FROM messages where id = $1", messageId)
-	if execErr != nil {
-		log.Fatal("Exec():", execErr)
+func deleteMessage(messageId string, ctx context.Context) error {
+	result, err := db.ExecContext(ctx, "DELETE FROM messages where id = $1", messageId)
+	if err != nil {
+		return &APIError{}
 	}
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected < 1 {

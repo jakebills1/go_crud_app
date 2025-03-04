@@ -1,26 +1,35 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
+	"time"
 )
 
 func indexHandler(w http.ResponseWriter, req *http.Request) {
-	allMessages := findAll()
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
+	allMessages, err := findAll(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 	b := marshal(allMessages)
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(b)
 }
 
 func createHandler(w http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
 	body := getBody(req)
 	var messageParams Message
 	parseBodyAsJson(body, &messageParams)
-	message, saveErr := saveMessage(messageParams.Name, messageParams.Body)
+	message, saveErr := saveMessage(messageParams.Name, messageParams.Body, ctx)
 	if saveErr != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, saveErr.Error(), http.StatusBadRequest)
 	} else {
 		w.WriteHeader(http.StatusCreated)
 		b := marshal(message)
@@ -30,11 +39,15 @@ func createHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func showHandler(w http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
+
 	requestedMessageId := req.PathValue("messageId")
-	foundMessage, err := findById(requestedMessageId)
+	foundMessage, err := findById(requestedMessageId, ctx)
 
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+		// todo differentiate between 404 and 500
+		http.Error(w, err.Error(), http.StatusNotFound)
 	} else {
 		w.Header().Add("Content-Type", "application/json")
 		b := marshal(foundMessage)
@@ -43,17 +56,20 @@ func showHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func updateHandler(w http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
+
 	requestedMessageId := req.PathValue("messageId")
-	message, err := findById(requestedMessageId)
+	message, err := findById(requestedMessageId, ctx)
 
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 	} else {
 		body := getBody(req)
 		parseBodyAsJson(body, &message)
-		updateErr := updateMessage(&message)
+		updateErr := updateMessage(&message, ctx)
 		if updateErr != nil {
-			w.WriteHeader(http.StatusBadRequest)
+			http.Error(w, updateErr.Error(), http.StatusBadRequest)
 		} else {
 			w.Header().Add("Content-Type", "application/json")
 			b := marshal(message)
@@ -63,10 +79,13 @@ func updateHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func deleteHandler(w http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
+
 	requestedMessageId := req.PathValue("messageId")
-	err := deleteMessage(requestedMessageId)
+	err := deleteMessage(requestedMessageId, ctx)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 	} else {
 		w.WriteHeader(http.StatusNoContent)
 	}
