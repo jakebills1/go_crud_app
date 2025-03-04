@@ -79,15 +79,14 @@ func updateMessage(message *Message, ctx context.Context) error {
 }
 
 func saveMessage(name string, body string, ctx context.Context) (Message, error) {
+	message := Message{}
 	ts := time.Now().Unix()
-	row := db.QueryRowContext(ctx, "INSERT INTO messages values ($1, $2, $3) returning id", name, body, ts)
+	row := db.QueryRowContext(ctx, "INSERT INTO messages values ($1, $2, $3) returning *", name, body, ts)
 
-	var id int64
-	err := row.Scan(&id)
+	err := row.Scan(&message.Name, &message.Body, &message.Time, &message.Id)
 	if err != nil {
 		return Message{}, &NotSavedError{}
 	}
-	message := Message{Name: name, Body: body, Time: ts, Id: id}
 	return message, nil
 }
 
