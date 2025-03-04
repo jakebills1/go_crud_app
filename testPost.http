@@ -1,0 +1,182 @@
+### POST /messages
+< {%
+    client.global.set("name", "Jake")
+    client.global.set("body", "this is a new post request with a JSON body")
+%}
+POST http://{{url}}/messages
+Content-Type: application/json
+Accept: application/json
+
+{
+  "Name": "{{name}}",
+  "Body": "{{body}}"
+}
+
+> {%
+    const message = JSON.parse(response.body)
+    client.global.set("messageId", message.Id)
+
+    client.test("Message has ID", () => {
+        client.assert(
+            message.Id !== null || message.Id !== '',
+            `Expected message to have nonnull Id but is actually ${message.Id}`
+        )
+    })
+    client.test("Message is created with params from body", () => {
+        const expectedName = client.global.get("name");
+        const expectedBody = client.global.get("body");
+        client.assert(
+            message.Name === expectedName,
+            `Expected message name to be ${expectedName} but is actually ${message.Name}`
+        )
+        client.assert(
+            message.Body === expectedBody,
+            `Expected message body to be ${expectedBody} but is actually ${message.Body}`
+        )
+    })
+%}
+
+### POST /messages : invalid body
+POST http://{{url}}/messages
+Content-Type: application/text
+Accept: application/json
+
+{
+  "Name": "",
+  "Body": ""
+
+
+> {%
+    client.test("bad request is returned", () => {
+        client.assert(
+            response.status === 400,
+            `Expected response code to be 400 but is actually ${response.status}`
+        )
+    })
+%}
+
+### GET /messages/:id
+GET http://{{url}}/messages/{{messageId}}
+Content-Type: application/json
+Accept: application/json
+
+
+> {%
+    const message = response.body;
+
+    client.test("Right message is returned", () => {
+        const expectedId = client.global.get("messageId");
+        const expectedName = client.global.get("name");
+        const expectedBody = client.global.get("body");
+        client.assert(
+            message.Id === expectedId,
+            `Expected message Id to be ${expectedId} but is actually ${message.Id}`
+        )
+        client.assert(
+            message.Name === expectedName,
+            `Expected message name to be ${expectedName} but is actually ${message.Name}`
+        )
+        client.assert(
+            message.Body === expectedBody,
+            `Expected message body to be ${expectedBody} but is actually ${message.Body}`
+        )
+
+    })
+%}
+
+### GET /messages/:id : 404
+GET http://{{url}}/messages/0
+Content-Type: application/json
+Accept: application/json
+
+
+> {%
+    client.test("Responds with 404", () => {
+        client.assert(
+            response.status === 404,
+            `Expected response code to be 404 but is actually ${response.status}`
+        )
+    })
+%}
+
+### PUT /messages/:id
+
+PUT http://{{url}}/messages/{{messageId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "Name": "UPDATE"
+}
+
+> {%
+    const message = response.body;
+
+    client.test("Message is updated", () => {
+        client.assert(
+            message.Name === "UPDATE",
+            `Expected message name to be UPDATE but is actually ${message.Name}`
+        )
+    })
+%}
+
+### PUT /messages/:id : 404
+PUT http://{{url}}/messages/0
+Content-Type: application/json
+Accept: application/json
+
+{
+  "Name": "UPDATE"
+}
+
+> {%
+    client.test("Responds with 404", () => {
+        client.assert(
+            response.status === 404,
+            `Expected response code to be 404 but is actually ${response.status}`
+        )
+    })
+%}
+
+### DELETE /messages/:id
+DELETE http://{{url}}/messages/{{messageId}}
+
+> {%
+
+    client.test("Message is deleted", () => {
+        client.assert(
+            response.status === 204,
+            `Expected status code to be 204 but is actually ${response.status}`
+        )
+    })
+%}
+
+### DELETE /messages/:id : 404
+DELETE http://{{url}}/messages/0
+
+> {%
+    client.test("Responds with 404", () => {
+        client.assert(
+            response.status === 404,
+            `Expected response code to be 404 but is actually ${response.status}`
+        )
+    })
+%}
+
+
+
+### GET /messages
+GET http://{{url}}/messages
+Accept: application/json
+
+> {%
+    const id = client.global.get("messageId");
+    const messages = response.body;
+    const ids = messages.map(message => message.Id);
+    client.test("Message index no longer has test message", () => {
+        client.assert(
+            !ids.includes(parseInt(id, 10)),
+            `Expected messages index not to include ${id} but actually does`
+        )
+    })
+%}
