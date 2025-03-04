@@ -18,7 +18,7 @@ func indexHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	b, marshalErr := marshal(allMessages)
 	if marshalErr != nil {
-		http.Error(w, "internal server error", http.StatusBadRequest)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(b)
@@ -43,7 +43,7 @@ func createHandler(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 		b, marshalErr := marshal(message)
 		if marshalErr != nil {
-			http.Error(w, "internal server error", http.StatusBadRequest)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 		w.Header().Add("Content-Type", "application/json")
 		w.Write(b)
@@ -62,7 +62,7 @@ func showHandler(w http.ResponseWriter, req *http.Request) {
 		w.Header().Add("Content-Type", "application/json")
 		b, marshalErr := marshal(foundMessage)
 		if marshalErr != nil {
-			http.Error(w, "internal server error", http.StatusBadRequest)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 		w.Write(b)
 	case *NotFoundError:
@@ -97,7 +97,7 @@ func updateHandler(w http.ResponseWriter, req *http.Request) {
 			w.Header().Add("Content-Type", "application/json")
 			b, marshalErr := marshal(message)
 			if marshalErr != nil {
-				http.Error(w, "internal server error", http.StatusBadRequest)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
 			}
 			w.Write(b)
 		}
