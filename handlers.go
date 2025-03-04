@@ -45,13 +45,15 @@ func showHandler(w http.ResponseWriter, req *http.Request) {
 	requestedMessageId := req.PathValue("messageId")
 	foundMessage, err := findById(requestedMessageId, ctx)
 
-	if err != nil {
-		// todo differentiate between 404 and 500
-		http.Error(w, err.Error(), http.StatusNotFound)
-	} else {
+	switch err.(type) {
+	case nil:
 		w.Header().Add("Content-Type", "application/json")
 		b := marshal(foundMessage)
 		w.Write(b)
+	case *NotFoundError:
+		http.Error(w, err.Error(), http.StatusNotFound)
+	case *APIError:
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -84,10 +86,13 @@ func deleteHandler(w http.ResponseWriter, req *http.Request) {
 
 	requestedMessageId := req.PathValue("messageId")
 	err := deleteMessage(requestedMessageId, ctx)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-	} else {
+	switch err.(type) {
+	case nil:
 		w.WriteHeader(http.StatusNoContent)
+	case *NotFoundError:
+		http.Error(w, err.Error(), http.StatusNotFound)
+	case *APIError:
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
