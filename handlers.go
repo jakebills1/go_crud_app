@@ -17,7 +17,7 @@ func indexHandler(w http.ResponseWriter, req *http.Request) {
 func createHandler(w http.ResponseWriter, req *http.Request) {
 	body := getBody(req)
 	var messageParams Message
-	parseBodyAsJson(body, messageParams)
+	parseBodyAsJson(body, &messageParams)
 	message, saveErr := saveMessage(messageParams.Name, messageParams.Body)
 	if saveErr != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -50,7 +50,7 @@ func updateHandler(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	} else {
 		body := getBody(req)
-		parseBodyAsJson(body, message)
+		parseBodyAsJson(body, &message)
 		updateErr := updateMessage(&message)
 		if updateErr != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -80,8 +80,8 @@ func getBody(req *http.Request) []byte {
 	return body
 }
 
-func parseBodyAsJson(body []byte, src Message) {
-	err := json.Unmarshal(body, &src)
+func parseBodyAsJson(body []byte, src *Message) {
+	err := json.Unmarshal(body, src)
 	if err != nil {
 		log.Fatal("Unmarshal():", err)
 	}
